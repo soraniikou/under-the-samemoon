@@ -291,19 +291,7 @@
   }
 
   /**
-   * PC のみ最終フレーズは 4 語（Let / me / stay / by）、それ以外は従来の 6 語。
-   */
-  function staircaseWordsForViewport(phrase) {
-    if (phrase.staggerStaircase && w > 768) {
-      return ["Let", "me", "stay", "by"];
-    }
-    return phrase.staggerWords;
-  }
-
-  /**
-   * 最終フレーズ用 階段式
-   * - 6 語: Let / me / stay / by・your・side（最終行 3 語）
-   * - 4 語（PC のみ）: Let / me / stay / by を各行 1 語ずつ
+   * 最終フレーズ用 階段式（Let / me / stay / by・your・side）
    */
   function layoutPhraseStaircase(words, centerX, centerY, fontSize) {
     ctx.font = phraseFont(fontSize);
@@ -313,29 +301,6 @@
     const widths = words.map(function (wd) {
       return ctx.measureText(wd).width;
     });
-
-    if (words.length === 4) {
-      const numRows = 4;
-      const rowSteps = [0, 1, 2, 3];
-      let maxRight = 0;
-      let i;
-      for (i = 0; i < 4; i++) {
-        const rightEdge = rowSteps[i] * stairIndent + widths[i];
-        if (rightEdge > maxRight) maxRight = rightEdge;
-      }
-      const blockLeft = centerX - maxRight / 2;
-      const totalH = (numRows - 1) * lineHeight;
-      const out = [];
-      for (i = 0; i < 4; i++) {
-        const cy = centerY - totalH / 2 + i * lineHeight;
-        out.push({
-          word: words[i],
-          cx: blockLeft + rowSteps[i] * stairIndent + widths[i] / 2,
-          cy: cy
-        });
-      }
-      return out;
-    }
 
     const rowSteps = [0, 1, 2, 3];
     const rowIndices = [[0], [1], [2], [3, 4, 5]];
@@ -396,7 +361,7 @@
 
   function layoutPhraseLayout(phrase, centerX, centerY, fontSize) {
     if (phrase.staggerWords && phrase.staggerWords.length > 0 && phrase.staggerStaircase) {
-      return layoutPhraseStaircase(staircaseWordsForViewport(phrase), centerX, centerY, fontSize);
+      return layoutPhraseStaircase(phrase.staggerWords, centerX, centerY, fontSize);
     }
     let flat;
     if (phrase.staggerWords && phrase.staggerWords.length > 0) {
@@ -726,7 +691,9 @@
     if (baseOp <= 0.001) return;
 
     const pos = textPosition(nowT);
-    const sizeMul = phrase.phraseSizeScale != null ? phrase.phraseSizeScale : 1;
+    let sizeMul = phrase.phraseSizeScale != null ? phrase.phraseSizeScale : 1;
+    /** パソコンのみ最終フレーズ（階段の一文）を現在サイズの 0.7 倍 */
+    if (w > 768 && phrase.staggerStaircase) sizeMul *= 0.7;
     const fontSize = w * 0.036 * textScale * sizeMul;
     let layout = layoutPhraseLayout(phrase, pos.x, pos.y, fontSize);
     layout = clampPhraseLayoutHorizontal(layout, fontSize);
@@ -803,10 +770,9 @@
 
   function drawTapHint(nowT) {
     if (nowT < NARRATIVE_END_SEC || blackoutStart !== null) return;
-    /** tap to close のみ 1.8 倍ベース。パソコン（769px 以上）はさらに 0.7 倍＝実質 1.26 倍相当の基底 */
+    /** tap to close のみ、スマホ・PCとも基底に対して 1.8 倍（最終フレーズの縮小とは別） */
     const TAP_HINT_SIZE_MUL = 1.8;
-    let fs = w * 0.015 * textScale * TAP_HINT_SIZE_MUL;
-    if (w > 768) fs *= 0.7;
+    const fs = w * 0.015 * textScale * TAP_HINT_SIZE_MUL;
     const tapAlpha = textScale > 1 ? 0.5 : 0.3;
     ctx.save();
     ctx.font = phraseFont(fs);
