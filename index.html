@@ -62,24 +62,13 @@
   /** デコード前に tap to close された場合、再生開始後にフェードをかける */
   let humCloseFadeRequested = false;
 
-  /** 動作確認用（別指示で削除） */
-  const debugEl = document.createElement('div');
-  debugEl.style.cssText = 'position:fixed;bottom:60px;left:10px;color:white;font-size:10px;opacity:0.5;z-index:9999;pointer-events:none;font-family:system-ui,sans-serif;max-width:90vw;line-height:1.25;';
-  document.body.appendChild(debugEl);
-  function debug(msg) {
-    debugEl.textContent = msg;
-  }
-
   async function preloadHumAudio() {
     try {
       const response = await fetch('audio/hum.mp3');
       if (!response.ok) throw new Error(response.statusText);
       const arrayBuffer = await response.arrayBuffer();
       humEncodedBuffer = arrayBuffer;
-      debug('audio fetched: ' + arrayBuffer.byteLength + ' bytes');
-    } catch (err) {
-      debug('fetch error: ' + (err.message || String(err)));
-    }
+    } catch (err) {}
   }
 
   function playHumDecoded() {
@@ -98,9 +87,7 @@
     humSource.start(0);
     humSource.onended = function () {
       humSource = null;
-      debug('hum buffer ended');
     };
-    debug('hum playing: ' + humBuffer.duration.toFixed(1) + 's');
     if (humCloseFadeRequested) {
       humCloseFadeRequested = false;
       fadeOutHumOnClose();
@@ -116,25 +103,34 @@
         humBuffer = buffer;
         playHumDecoded();
       },
-      function () {
-        debug('decodeAudioData failed');
-      }
+      function () {}
     );
   }
 
-  function unlockAndStart() {
+  /** 初回ジェスチャ: 体験タイムライン開始 + Web Audio アンロック（同一スタック内で play） */
+  let experienceStarted = false;
+  let appStart = null;
+
+  function onFirstUserGesture(e) {
+    if (!experienceStarted) {
+      experienceStarted = true;
+      appStart = performance.now();
+      if (e && e.cancelable && e.type === 'touchstart') {
+        try {
+          e.preventDefault();
+        } catch (err) {}
+      }
+    }
     if (humUnlockRan) return;
     humUnlockRan = true;
 
     var Ctor = window.AudioContext || window.webkitAudioContext;
     if (!Ctor) {
-      debug('no AudioContext');
       return;
     }
     try {
       audioContext = new Ctor();
     } catch (e) {
-      debug('AudioContext ctor error');
       return;
     }
 
@@ -151,7 +147,6 @@
     if (humEncodedBuffer) {
       decodeHumAndPlay(humEncodedBuffer);
     } else {
-      debug('arrayBuffer not ready — fetching');
       fetch('audio/hum.mp3')
         .then(function (r) {
           if (!r.ok) throw new Error(r.statusText);
@@ -159,12 +154,9 @@
         })
         .then(function (ab) {
           humEncodedBuffer = ab;
-          debug('audio fetched: ' + ab.byteLength + ' bytes');
           decodeHumAndPlay(ab);
         })
-        .catch(function (err) {
-          debug('fetch error: ' + (err.message || String(err)));
-        });
+        .catch(function () {});
     }
   }
 
@@ -206,8 +198,8 @@
     preloadHumAudio();
   }
 
-  document.addEventListener('touchstart', unlockAndStart, { once: true, passive: true });
-  document.addEventListener('click', unlockAndStart, { once: true });
+  document.addEventListener('touchstart', onFirstUserGesture, { once: true, passive: false });
+  document.addEventListener('click', onFirstUserGesture, { once: true });
 
   const positions = ['water', 'moon', 'path'];
   const todayPosition = positions[Math.floor(Math.random() * 3)];
@@ -253,7 +245,6 @@
   let w = 0, h = 0, dpr = 1;
   /** 768px 以下でフレーズのフォントを 1.3 倍（PC は 1）。tap to close は drawTapHint 内で別途 1.8 倍 */
   let textScale = 1;
-  const appStart = performance.now();
   let fontsReady = false;
 
   let moonlightParticles = [];
@@ -380,6 +371,10 @@
     const ease = 1 - Math.pow(1 - p, 3);
     const from = rest - h * 0.35;
     return from + (rest - from) * ease;
+  }
+
+  function moonCenterY(nowT) {
+    return experienceStarted ? moonY(nowT) : moonRestY();
   }
 
   function beamCenterOffset(y, wt) {
@@ -639,21 +634,24 @@
     ctx.fillRect(0, top, w, h - top);
   }
 
-  function drawMoon(nowT) {
+  /** brightnessMult / haloScaleMult: タップ前の呼吸。開始後はともに 1 */
+  function drawMoon(nowT, brightnessMult, haloScaleMult) {
+    const br = brightnessMult == null ? 1 : brightnessMult;
+    const hs = haloScaleMult == null ? 1 : haloScaleMult;
     const cx = moonX();
-    const cy = moonY(nowT);
+    const cy = moonCenterY(nowT);
     const r = moonRadius();
     const mx = cx;
     const my = cy;
 
     ctx.save();
     for (let i = 5; i >= 1; i--) {
-      const radius = r * (1 + i * 0.8);
-      const alpha = 0.08 / i;
+      const baseA = 0.08 / i;
+      const radius = r * (1 + i * 0.8) * hs;
       const grad = ctx.createRadialGradient(mx, my, r, mx, my, radius);
-      grad.addColorStop(0, 'rgba(255, 248, 231, ' + alpha + ')');
-      grad.addColorStop(0.42, 'rgba(255, 236, 208, ' + (alpha * 0.38) + ')');
-      grad.addColorStop(0.74, 'rgba(255, 226, 188, ' + (alpha * 0.14) + ')');
+      grad.addColorStop(0, 'rgba(255, 248, 231, ' + Math.min(1, baseA * br) + ')');
+      grad.addColorStop(0.42, 'rgba(255, 236, 208, ' + Math.min(1, baseA * 0.38 * br) + ')');
+      grad.addColorStop(0.74, 'rgba(255, 226, 188, ' + Math.min(1, baseA * 0.14 * br) + ')');
       grad.addColorStop(1, 'rgba(255, 248, 231, 0)');
       ctx.fillStyle = grad;
       ctx.beginPath();
@@ -661,12 +659,12 @@
       ctx.fill();
     }
 
-    const rimGlow = ctx.createRadialGradient(mx - r * 0.22, my - r * 0.22, r * 0.12, mx, my, r * 1.08);
-    rimGlow.addColorStop(0, 'rgba(255, 252, 248, 0.92)');
-    rimGlow.addColorStop(0.48, 'rgba(255, 248, 231, 0.2)');
-    rimGlow.addColorStop(0.84, 'rgba(255, 248, 231, 0.1)');
-    rimGlow.addColorStop(0.94, 'rgba(255, 248, 231, 0.3)');
-    rimGlow.addColorStop(1, 'rgba(228, 210, 190, 0.42)');
+    const rimGlow = ctx.createRadialGradient(mx - r * 0.22, my - r * 0.22, r * 0.12, mx, my, r * 1.08 * hs);
+    rimGlow.addColorStop(0, 'rgba(255, 252, 248, ' + Math.min(1, 0.92 * br) + ')');
+    rimGlow.addColorStop(0.48, 'rgba(255, 248, 231, ' + Math.min(1, 0.2 * br) + ')');
+    rimGlow.addColorStop(0.84, 'rgba(255, 248, 231, ' + Math.min(1, 0.1 * br) + ')');
+    rimGlow.addColorStop(0.94, 'rgba(255, 248, 231, ' + Math.min(1, 0.3 * br) + ')');
+    rimGlow.addColorStop(1, 'rgba(228, 210, 190, ' + Math.min(1, 0.42 * br) + ')');
     ctx.fillStyle = rimGlow;
     ctx.beginPath();
     ctx.arc(mx, my, r, 0, Math.PI * 2);
@@ -678,11 +676,13 @@
     core.addColorStop(0.88, '#f5e6d0');
     core.addColorStop(1, '#e8dcc8');
     ctx.fillStyle = core;
+    ctx.globalAlpha = Math.min(1.15, br);
     ctx.beginPath();
     ctx.arc(mx, my, r * 0.9, 0, Math.PI * 2);
     ctx.fill();
+    ctx.globalAlpha = 1;
 
-    ctx.strokeStyle = 'rgba(255, 248, 231, 0.18)';
+    ctx.strokeStyle = 'rgba(255, 248, 231, ' + Math.min(1, 0.18 * br) + ')';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(mx, my, r * 0.97, 0, Math.PI * 2);
@@ -948,15 +948,31 @@
   }
 
   function frame(nowMs) {
-    const nowT = (nowMs - appStart) / 1000;
-
     ctx.clearRect(0, 0, w, h);
+
+    if (!experienceStarted) {
+      const breathPhase = (nowMs / 1000) * ((Math.PI * 2) / 3.5);
+      const breath = Math.sin(breathPhase);
+      const brightness = 0.8 + (breath + 1) * 0.15;
+      const haloScale = 1.0 + breath * 0.08;
+      drawSky(0);
+      drawHorizonBlend(0);
+      drawWaterBg(0);
+      drawMoon(0, brightness, haloScale);
+      drawBlackout(nowMs);
+      if (blackoutStart === null || (nowMs - blackoutStart) < 3100) {
+        requestAnimationFrame(frame);
+      }
+      return;
+    }
+
+    const nowT = (nowMs - appStart) / 1000;
 
     drawSky(nowT);
     drawFirstStar(nowT);
     drawHorizonBlend(nowT);
     drawWaterBg(nowT);
-    drawMoon(nowT);
+    drawMoon(nowT, 1, 1);
     drawMoonlightParticles(nowT);
     drawWaterSurfaceWaves(nowT);
     drawPhrase(nowT);
@@ -971,6 +987,7 @@
   }
 
   function onPointerDown(e) {
+    if (!experienceStarted || appStart === null) return;
     const nowT = (performance.now() - appStart) / 1000;
     if (nowT < NARRATIVE_END_SEC || blackoutStart !== null) return;
     blackoutStart = performance.now();
