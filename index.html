@@ -38,29 +38,102 @@
     }
   </style>
   <!-- 
-  音声: ./audio/hum.mp3（約100秒のハミング）
-  ユーザーが画面を最初にタップした時に再生開始(iOS audio unlock / playsinline 対応)
+  音声: audio/hum.mp3 — JS で new Audio() 生成、最初の touchstart/click の同期コンテキストで play()（iOS unlock）
   -->
 </head>
 <body>
   <canvas id="c" aria-label="Moonlight on water"></canvas>
-  <audio id="ambient" src="./audio/hum.mp3" preload="metadata" playsinline></audio>
   <script>
 (function () {
   'use strict';
 
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
-  const audioEl = document.getElementById('ambient');
+
+  /** iOS Safari: 最初の touchstart/click のスタック内で即時 play()（その前に await/setTimeout を置かない） */
+  let humAudio = null;
   let audioUnlocked = false;
 
-  function tryStartAudio() {
-    if (audioUnlocked || !audioEl) return;
-    audioUnlocked = true;
-    audioEl.volume = 0.9;
-    const p = audioEl.play();
-    if (p && typeof p.catch === 'function') p.catch(function () {});
+  /** 動作確認用（本番前に削除可） */
+  const debugEl = document.createElement('div');
+  debugEl.style.cssText = 'position:fixed;bottom:60px;left:10px;color:white;font-size:10px;opacity:0.5;z-index:9999;pointer-events:none;font-family:system-ui,sans-serif;max-width:90vw;line-height:1.25;';
+  document.body.appendChild(debugEl);
+  function debug(msg) {
+    debugEl.textContent = msg;
   }
+
+  function createHumAudioIfNeeded() {
+    if (humAudio) return true;
+    try {
+      humAudio = new Audio('audio/hum.mp3');
+      humAudio.preload = 'auto';
+      humAudio.volume = 1.0;
+      humAudio.loop = false;
+    } catch (e) {
+      debug('audio create failed');
+      return false;
+    }
+    return true;
+  }
+
+  function onDomReadyAudio() {
+    if (createHumAudioIfNeeded()) {
+      debug('audio loaded: ' + (humAudio !== null));
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', onDomReadyAudio);
+  if (document.readyState !== 'loading') {
+    onDomReadyAudio();
+  }
+
+  /**
+   * 最初のタッチ/クリックのみ。同期的に create + play()。
+   * DOMContentLoaded 前にタップした場合も、ここで new Audio → play を同一ジェスチャ内で行う。
+   */
+  function unlockAndStart() {
+    if (audioUnlocked) return;
+    if (!createHumAudioIfNeeded() || !humAudio) return;
+    audioUnlocked = true;
+    humAudio.volume = 0.9;
+
+    var p;
+    try {
+      p = humAudio.play();
+    } catch (err) {
+      try {
+        humAudio.muted = true;
+        humAudio.play();
+        humAudio.muted = false;
+        debug('audio playing: ' + (!humAudio.paused));
+      } catch (e2) {
+        debug('audio play threw');
+      }
+      return;
+    }
+
+    if (p !== undefined && typeof p.then === 'function') {
+      p.then(function () {
+        debug('audio playing: ' + (!humAudio.paused));
+      }).catch(function (err) {
+        humAudio.muted = true;
+        var p2 = humAudio.play();
+        if (p2 !== undefined && typeof p2.then === 'function') {
+          p2.then(function () {
+            humAudio.muted = false;
+            debug('audio playing: ' + (!humAudio.paused));
+          }).catch(function () {
+            debug('audio fallback failed');
+          });
+        }
+      });
+    } else {
+      debug('audio playing: ' + (!humAudio.paused));
+    }
+  }
+
+  document.addEventListener('touchstart', unlockAndStart, { once: true, passive: true });
+  document.addEventListener('click', unlockAndStart, { once: true });
 
   const positions = ['water', 'moon', 'path'];
   const todayPosition = positions[Math.floor(Math.random() * 3)];
@@ -823,13 +896,12 @@
   }
 
   function onPointerDown(e) {
-    tryStartAudio();
     const nowT = (performance.now() - appStart) / 1000;
     if (nowT < NARRATIVE_END_SEC || blackoutStart !== null) return;
     blackoutStart = performance.now();
-    if (audioEl) {
+    if (humAudio) {
       try {
-        audioEl.pause();
+        humAudio.pause();
       } catch (err) {}
     }
     e.preventDefault();
