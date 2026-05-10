@@ -375,6 +375,31 @@
     });
   }
 
+  /**
+   * スマホのみ: 文言ブロックが左右にはみ出さないよう cx を平行移動。
+   * 月が左上のとき階段の「Let」が画面左で欠けるのを防ぐ。
+   */
+  function clampPhraseLayoutHorizontal(layout, fontSize) {
+    if (w > 768 || layout.length === 0) return layout;
+    ctx.font = phraseFont(fontSize);
+    const pad = Math.max(16, w * 0.048);
+    let minLeft = Infinity;
+    let maxRight = -Infinity;
+    let k;
+    for (k = 0; k < layout.length; k++) {
+      const wi = ctx.measureText(layout[k].word).width;
+      minLeft = Math.min(minLeft, layout[k].cx - wi / 2);
+      maxRight = Math.max(maxRight, layout[k].cx + wi / 2);
+    }
+    const sLow = pad - minLeft;
+    const sHigh = (w - pad) - maxRight;
+    const shift = (sLow + sHigh) / 2;
+    if (Math.abs(shift) < 0.05) return layout;
+    return layout.map(function (item) {
+      return { word: item.word, cx: item.cx + shift, cy: item.cy };
+    });
+  }
+
   /** 最終フレーズ用: 経過秒 local に対する単語 i の不透明度係数 (0〜1) */
   function staggerWordOpacity(local, wordIndex) {
     const start = wordIndex * STAGGER_WORD_GAP;
@@ -592,15 +617,24 @@
     const bob = textBob(nowT);
     const moonBottom = moonY(nowT) + moonRadius() * 1.05;
 
+    let px;
+    let py;
     if (todayPosition === 'moon') {
-      return { x: cx, y: moonBottom + h * 0.06 + bob, align: 'center' };
+      px = cx;
+      py = moonBottom + h * 0.06 + bob;
+    } else if (todayPosition === 'path') {
+      py = (moonBottom + h) * 0.52 + bob;
+      const pathOff = beamCenterOffset(py, nowT * WAVE_TIME);
+      px = cx + pathOff;
+    } else {
+      px = w * 0.5;
+      py = hx + h * 0.1 + bob;
     }
-    if (todayPosition === 'path') {
-      const midY = (moonBottom + h) * 0.52 + bob;
-      const pathOff = beamCenterOffset(midY, nowT * WAVE_TIME);
-      return { x: cx + pathOff, y: midY, align: 'center' };
+    /** スマホかつ月が左スロット: アンカーをやや右へ（長い階段文の左欠け対策） */
+    if (w <= 768 && moonSlotIndex === 0) {
+      px += w * 0.065;
     }
-    return { x: w * 0.5, y: hx + h * 0.1 + bob, align: 'center' };
+    return { x: px, y: py, align: 'center' };
   }
 
   function drawPhraseGlowStrokeWords(layout, wordOps, fontSize) {
@@ -660,7 +694,8 @@
     const pos = textPosition(nowT);
     const sizeMul = phrase.phraseSizeScale != null ? phrase.phraseSizeScale : 1;
     const fontSize = w * 0.036 * textScale * sizeMul;
-    const layout = layoutPhraseLayout(phrase, pos.x, pos.y, fontSize);
+    let layout = layoutPhraseLayout(phrase, pos.x, pos.y, fontSize);
+    layout = clampPhraseLayoutHorizontal(layout, fontSize);
 
     const local = nowT - phrase.t0;
     const wordOps = [];
