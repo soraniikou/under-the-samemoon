@@ -925,6 +925,22 @@
     ctx.restore();
   }
 
+  /** 体験開始前のみ: 月の左側に控えめな「tap」（開始後は描画しない） */
+  function drawInitialTapHint() {
+    const fs = w * 0.015 * textScale;
+    const cx = moonX();
+    const cy = moonCenterY(0);
+    const r = moonRadius();
+    const gap = fs * 0.5;
+    ctx.save();
+    ctx.font = phraseFont(fs);
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = textScale > 1 ? 'rgba(255, 248, 231, 0.26)' : 'rgba(255, 248, 231, 0.2)';
+    ctx.fillText('tap', cx - r - gap, cy);
+    ctx.restore();
+  }
+
   function drawTapHint(nowT) {
     if (nowT < NARRATIVE_END_SEC || blackoutStart !== null) return;
     /** tap to close のみ、スマホ・PCとも基底に対して 1.8 倍（最終フレーズの縮小とは別） */
@@ -959,6 +975,7 @@
       drawHorizonBlend(0);
       drawWaterBg(0);
       drawMoon(0, brightness, haloScale);
+      drawInitialTapHint();
       drawBlackout(nowMs);
       if (blackoutStart === null || (nowMs - blackoutStart) < 3100) {
         requestAnimationFrame(frame);
