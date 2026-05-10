@@ -38,18 +38,29 @@
     }
   </style>
   <!-- 
-  音声ファイル配置予定: ./audio/moonlight.mp3
-  ユーザーが画面を最初にタップした時に再生開始(iOS audio unlock 対応)
+  音声: ./audio/hum.mp3（約100秒のハミング）
+  ユーザーが画面を最初にタップした時に再生開始(iOS audio unlock / playsinline 対応)
   -->
 </head>
 <body>
   <canvas id="c" aria-label="Moonlight on water"></canvas>
+  <audio id="ambient" src="./audio/hum.mp3" preload="metadata" playsinline></audio>
   <script>
 (function () {
   'use strict';
 
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
+  const audioEl = document.getElementById('ambient');
+  let audioUnlocked = false;
+
+  function tryStartAudio() {
+    if (audioUnlocked || !audioEl) return;
+    audioUnlocked = true;
+    audioEl.volume = 0.9;
+    const p = audioEl.play();
+    if (p && typeof p.catch === 'function') p.catch(function () {});
+  }
 
   const positions = ['water', 'moon', 'path'];
   const todayPosition = positions[Math.floor(Math.random() * 3)];
@@ -812,9 +823,15 @@
   }
 
   function onPointerDown(e) {
+    tryStartAudio();
     const nowT = (performance.now() - appStart) / 1000;
     if (nowT < NARRATIVE_END_SEC || blackoutStart !== null) return;
     blackoutStart = performance.now();
+    if (audioEl) {
+      try {
+        audioEl.pause();
+      } catch (err) {}
+    }
     e.preventDefault();
   }
   canvas.addEventListener('pointerdown', onPointerDown, { passive: false });
