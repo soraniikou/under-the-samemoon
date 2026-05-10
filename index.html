@@ -64,16 +64,21 @@
     { t0: 50, t1: 75, text: "let it",                fadeIn: 5, hold: 17, fadeOut: 3 },
     {
       t0: 75,
-      t1: 90,
+      t1: 94,
       text: "Let me stay by your side",
       /** 単語を 0.52 秒ごとに開始し、階段状レイアウト（最終行は by your side） */
       staggerWords: ["Let", "me", "stay", "by", "your", "side"],
       staggerStaircase: true,
+      /** この一文のみ通常より 1.2 倍のフォント */
+      phraseSizeScale: 1.2,
       fadeIn: 5,
-      hold: 7,
+      hold: 11,
       fadeOut: 3
     }
   ];
+
+  /** 最終フレーズの終了秒（これ以降 tap to close）— PHRASES と同期 */
+  const NARRATIVE_END_SEC = PHRASES[PHRASES.length - 1].t1;
 
   /** Canvas 用: 単語間（旧 1.5em の 0.7 倍） */
   const WORD_SPACING_EM = 1.05;
@@ -243,7 +248,6 @@
   }
 
   function currentPhrase(t) {
-    if (t >= 90) return null;
     for (let i = 0; i < PHRASES.length; i++) {
       const p = PHRASES[i];
       if (t >= p.t0 && t < p.t1) return p;
@@ -654,7 +658,8 @@
     if (baseOp <= 0.001) return;
 
     const pos = textPosition(nowT);
-    const fontSize = w * 0.036 * textScale;
+    const sizeMul = phrase.phraseSizeScale != null ? phrase.phraseSizeScale : 1;
+    const fontSize = w * 0.036 * textScale * sizeMul;
     const layout = layoutPhraseLayout(phrase, pos.x, pos.y, fontSize);
 
     const local = nowT - phrase.t0;
@@ -728,7 +733,7 @@
   }
 
   function drawTapHint(nowT) {
-    if (nowT < 90 || blackoutStart !== null) return;
+    if (nowT < NARRATIVE_END_SEC || blackoutStart !== null) return;
     const fs = w * 0.015 * textScale;
     const tapAlpha = textScale > 1 ? 0.5 : 0.3;
     ctx.save();
@@ -770,7 +775,7 @@
 
   function onPointerDown(e) {
     const nowT = (performance.now() - appStart) / 1000;
-    if (nowT < 90 || blackoutStart !== null) return;
+    if (nowT < NARRATIVE_END_SEC || blackoutStart !== null) return;
     blackoutStart = performance.now();
     e.preventDefault();
   }
