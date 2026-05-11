@@ -1,4 +1,4 @@
-# under-the-samemoon
+🌕️under-the-samemoon
 
 A 1-minute digital sanctuary.
 Moonlight touches the water. You are under the same moon as someone you cannot meet.
@@ -8,14 +8,23 @@ Moonlight touches the water. You are under the same moon as someone you cannot m
 — let it
 — Let me stay by your side
 
-## Files
+Files
 
 ```
 under-the-samemoon/
 ├── index.html
 ├── README.md
 └── audio/
-    └── hum.mp3        (~100s humming, place your file here)
-```
+    └── hum.mp3
+🌖体験
 
-The app plays `audio/hum.mp3` after the first tap (for iOS audio unlock). Add your own `hum.mp3` (e.g. ~2.36MB) into `audio/`.
+  https://under-the-samemoon.vercel.app
+
+![screenshot1](スクリーンショット%202026-05-10%20165332.png){width=80%}
+
+![screenshot2](スクリーンショット%202026-05-10%20165404.png){width=80%}
+
+![screenshot3](スクリーンショット%202026-05-10%20165438.png){width=80%}
+
+![screenshot4](スクリーンショット%202026-05-10%20165509.png){width=80%}
+
