@@ -20,11 +20,8 @@ under-the-samemoon/
 
   https://under-the-samemoon.vercel.app
 
-![screenshot1](スクリーンショット%202026-05-10%20165332.png){width=80%}
-
-![screenshot2](スクリーンショット%202026-05-10%20165404.png){width=80%}
-
-![screenshot3](スクリーンショット%202026-05-10%20165438.png){width=80%}
-
-![screenshot4](スクリーンショット%202026-05-10%20165509.png){width=80%}
+<img src="スクリーンショット 2026-05-10 165332.png" width="80%">
+<img src="スクリーンショット 2026-05-10 165404.png" width="80%">
+<img src="スクリーンショット 2026-05-10 165438.png" width="80%">
+<img src="スクリーンショット 2026-05-10 165509.png" width="80%">
 
