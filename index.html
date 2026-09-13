@@ -738,16 +738,20 @@
     }
     if (!any) return;
 
+    /** フレーズ全体の明るさを抑える係数 */
+    const PHRASE_DIM = 0.55;
+    const dimmedOps = wordOps.map(function (v) { return v * PHRASE_DIM; });
+
     ctx.save();
-    drawPhraseGlowStrokeWords(layout, wordOps, fontSize);
-    drawPhraseBloomWords(layout, wordOps, fontSize);
+    drawPhraseGlowStrokeWords(layout, dimmedOps, fontSize);
+    drawPhraseBloomWords(layout, dimmedOps, fontSize);
 
     ctx.font = phraseFont(fontSize);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#fff8e7';
     for (k = 0; k < layout.length; k++) {
-      const wo = wordOps[k];
+      const wo = dimmedOps[k];
       if (wo <= 0.001) continue;
       ctx.globalAlpha = wo;
       ctx.fillText(layout[k].word, layout[k].cx, layout[k].cy);
