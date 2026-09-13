@@ -801,7 +801,9 @@
     ctx.font = phraseFont(fs);
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = textScale > 1 ? 'rgba(255, 248, 231, 0.26)' : 'rgba(255, 248, 231, 0.2)';
+    ctx.shadowColor = 'rgba(5, 13, 26, 0.9)';
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = '#fff8e7';
     ctx.fillText('tap', cx - r - gap, cy);
     ctx.restore();
   }
