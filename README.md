@@ -1,4 +1,6 @@
 🌕️under-the-samemoon
+音声　入力　一切ありません。
+最初タップしていただいて、ただ眺めて下さいね。
 
 A 1-minute digital sanctuary.
 Moonlight touches the water. You are under the same moon as someone you cannot meet.
