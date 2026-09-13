@@ -1,4 +1,6 @@
 🌕️under-the-samemoon
+音声　入力　一切ありません。
+最初タップしていただいて、ただ眺めて下さいね。
 
 A 1-minute digital sanctuary.
 Moonlight touches the water. You are under the same moon as someone you cannot meet.
@@ -13,7 +15,7 @@ Moonlight touches the water. You are under the same moon as someone you cannot m
 <img src="スクリーンショット 2026-05-10 165438.png" width="80%">
 <img src="スクリーンショット 2026-05-10 165509.png" width="80%">
 
-<<<<<<< HEAD
+ HEAD
 ```
 under-the-samemoon/
 ├── index.html
