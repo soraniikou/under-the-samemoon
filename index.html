@@ -792,7 +792,8 @@
 
   /** 体験開始前のみ: 月の左側に控えめな「tap」（開始後は描画しない） */
   function drawInitialTapHint() {
-    const fs = w * 0.015 * textScale;
+    const fsMul = textScale > 1 ? 2 : 1;
+    const fs = w * 0.015 * textScale * fsMul;
     const cx = moonX();
     const cy = moonCenterY(0);
     const r = moonRadius();
