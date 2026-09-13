@@ -13,7 +13,7 @@ Moonlight touches the water. You are under the same moon as someone you cannot m
 <img src="スクリーンショット 2026-05-10 165438.png" width="80%">
 <img src="スクリーンショット 2026-05-10 165509.png" width="80%">
 
-<<<<<<< HEAD
+ HEAD
 ```
 under-the-samemoon/
 ├── index.html
