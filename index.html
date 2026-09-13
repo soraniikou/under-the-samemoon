@@ -37,7 +37,6 @@
       }
     }
   </style>
-  <!-- 音声: Web Audio API（audio/hum.mp3）— iOS 解除用 silent buffer + GainNode フェード -->
 </head>
 <body>
   <canvas id="c" aria-label="Moonlight on water"></canvas>
@@ -49,153 +48,19 @@
   const ctx = canvas.getContext('2d');
   let blackoutStart = null;
 
-  /** Web Audio API — iOS での再生と GainNode フェード */
-  let audioContext = null;
-  let humEncodedBuffer = null;
-  let humBuffer = null;
-  let humSource = null;
-  let humGain = null;
-  let humPlaybackStarted = false;
-  let humUnlockRan = false;
-  /** タップ close 時のゲインフェードを二重指定しない */
-  let humTapFadeScheduled = false;
-  /** デコード前に tap to close された場合、再生開始後にフェードをかける */
-  let humCloseFadeRequested = false;
-
-  async function preloadHumAudio() {
-    try {
-      const response = await fetch('audio/hum.mp3');
-      if (!response.ok) throw new Error(response.statusText);
-      const arrayBuffer = await response.arrayBuffer();
-      humEncodedBuffer = arrayBuffer;
-    } catch (err) {}
-  }
-
-  function playHumDecoded() {
-    if (!audioContext || !humBuffer || humPlaybackStarted) return;
-    humPlaybackStarted = true;
-    humSource = audioContext.createBufferSource();
-    humSource.buffer = humBuffer;
-    humSource.loop = false;
-    humGain = audioContext.createGain();
-    humGain.gain.value = 1.0;
-    humSource.connect(humGain);
-    humGain.connect(audioContext.destination);
-    try {
-      if (audioContext.state === 'suspended') audioContext.resume();
-    } catch (e) {}
-    humSource.start(0);
-    humSource.onended = function () {
-      humSource = null;
-    };
-    if (humCloseFadeRequested) {
-      humCloseFadeRequested = false;
-      fadeOutHumOnClose();
-    }
-  }
-
-  function decodeHumAndPlay(encoded) {
-    if (!encoded || !audioContext) return;
-    var slice = encoded.slice(0);
-    audioContext.decodeAudioData(
-      slice,
-      function (buffer) {
-        humBuffer = buffer;
-        playHumDecoded();
-      },
-      function () {}
-    );
-  }
-
-  /** 初回ジェスチャ: 体験タイムライン開始 + Web Audio アンロック（同一スタック内で play） */
+  /** 初回ジェスチャ: 体験タイムライン開始 */
   let experienceStarted = false;
   let appStart = null;
 
   function onFirstUserGesture(e) {
-    if (!experienceStarted) {
-      experienceStarted = true;
-      appStart = performance.now();
-      if (e && e.cancelable && e.type === 'touchstart') {
-        try {
-          e.preventDefault();
-        } catch (err) {}
-      }
+    if (experienceStarted) return;
+    experienceStarted = true;
+    appStart = performance.now();
+    if (e && e.cancelable && e.type === 'touchstart') {
+      try {
+        e.preventDefault();
+      } catch (err) {}
     }
-    if (humUnlockRan) return;
-    humUnlockRan = true;
-
-    var Ctor = window.AudioContext || window.webkitAudioContext;
-    if (!Ctor) {
-      return;
-    }
-    try {
-      audioContext = new Ctor();
-    } catch (e) {
-      return;
-    }
-
-    try {
-      if (audioContext.state === 'suspended') audioContext.resume();
-    } catch (e) {}
-
-    var silentBuffer = audioContext.createBuffer(1, 1, 22050);
-    var silentSource = audioContext.createBufferSource();
-    silentSource.buffer = silentBuffer;
-    silentSource.connect(audioContext.destination);
-    silentSource.start(0);
-
-    if (humEncodedBuffer) {
-      decodeHumAndPlay(humEncodedBuffer);
-    } else {
-      fetch('audio/hum.mp3')
-        .then(function (r) {
-          if (!r.ok) throw new Error(r.statusText);
-          return r.arrayBuffer();
-        })
-        .then(function (ab) {
-          humEncodedBuffer = ab;
-          decodeHumAndPlay(ab);
-        })
-        .catch(function () {});
-    }
-  }
-
-  /** 95〜100秒: ナレーション終盤のスムーズな減衰（tap close 中は無効） */
-  function updateHumGain(nowT) {
-    if (!humGain || !audioContext || blackoutStart !== null) return;
-    if (humTapFadeScheduled) return;
-    if (nowT < 95) return;
-    var ctxTime = audioContext.currentTime;
-    if (nowT >= 95 && nowT < 100) {
-      var fadeProgress = (nowT - 95) / 5;
-      var targetGain = Math.max(0, 1.0 - fadeProgress);
-      humGain.gain.setTargetAtTime(targetGain, ctxTime, 0.1);
-    } else if (nowT >= 100) {
-      humGain.gain.setTargetAtTime(0, ctxTime, 0.1);
-    }
-  }
-
-  /** tap to close: 3秒でゲイン 0 */
-  function fadeOutHumOnClose() {
-    if (!audioContext || humTapFadeScheduled) return;
-    if (!humGain) {
-      humCloseFadeRequested = true;
-      return;
-    }
-    humTapFadeScheduled = true;
-    var t = audioContext.currentTime;
-    var g = humGain.gain;
-    try {
-      var cur = typeof g.value === 'number' ? g.value : 1;
-      g.cancelScheduledValues(t);
-      g.setValueAtTime(cur, t);
-      g.linearRampToValueAtTime(0, t + 3);
-    } catch (e) {}
-  }
-
-  window.addEventListener('DOMContentLoaded', preloadHumAudio);
-  if (document.readyState !== 'loading') {
-    preloadHumAudio();
   }
 
   document.addEventListener('touchstart', onFirstUserGesture, { once: true, passive: false });
@@ -996,8 +861,6 @@
     drawTapHint(nowT);
     drawBlackout(nowMs);
 
-    updateHumGain(nowT);
-
     if (blackoutStart === null || (nowMs - blackoutStart) < 3100) {
       requestAnimationFrame(frame);
     }
@@ -1008,7 +871,6 @@
     const nowT = (performance.now() - appStart) / 1000;
     if (nowT < NARRATIVE_END_SEC || blackoutStart !== null) return;
     blackoutStart = performance.now();
-    fadeOutHumOnClose();
     e.preventDefault();
   }
   canvas.addEventListener('pointerdown', onPointerDown, { passive: false });
